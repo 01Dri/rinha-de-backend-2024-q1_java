@@ -1,7 +1,6 @@
 package me.dri;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
@@ -26,9 +25,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class rinha {
-    private static final Gson gson = new GsonBuilder()
-            .setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSSZ")
-            .create();
 
     public static void main(String[] args) throws IOException, SQLException {
         HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
@@ -64,12 +60,12 @@ public class rinha {
                     String clienteId = matcher.group(1);
                     try {
                         var response = extratoService(clienteId);
-
-                        String jsonResponse = gson.toJson(response);
+                        ObjectMapper objectMapper = new ObjectMapper();
+                        String responseJson = objectMapper.writeValueAsString(response);
                         exchange.getResponseHeaders().set("Content-Type", "application/json");
-                        exchange.sendResponseHeaders(200, jsonResponse.getBytes().length);
+                        exchange.sendResponseHeaders(200, responseJson.getBytes().length);
                         OutputStream os = exchange.getResponseBody();
-                        os.write(jsonResponse.getBytes());
+                        os.write(responseJson.getBytes());
                         os.close();
 
                     } catch (ClienteNaoEncontradoException e) {
@@ -106,18 +102,19 @@ public class rinha {
                 if (matcher.matches()) {
                     String clienteId = matcher.group(1);
                     String requestBody = new String(exchange.getRequestBody().readAllBytes());
-
                     ObjectMapper objectMapper = new ObjectMapper();
                     TransacaoDTO transacaoDTO = objectMapper.readValue(requestBody, TransacaoDTO.class);
 
                     try {
+                        var response = transacaoService(clienteId, transacaoDTO);
                         System.out.println("Processando transação para o cliente ID: " + clienteId);
-                        String jsonResponse = gson.toJson(transacaoService(clienteId, transacaoDTO));
+                        String responseJson = objectMapper.writeValueAsString(response);
                         exchange.getResponseHeaders().set("Content-Type", "application/json");
-                        exchange.sendResponseHeaders(200, jsonResponse.getBytes().length);
+                        exchange.sendResponseHeaders(200, responseJson.getBytes().length);
                         OutputStream os = exchange.getResponseBody();
-                        os.write(jsonResponse.getBytes());
+                        os.write(responseJson.getBytes());
                         os.close();
+
                     } catch (TipoInvalidoTransacaoException | DescricaoInvalidaTransacaoException |
                              ValorInvalidoTransacaoException | LimiteExcedidoTransacaoException |
                              TipoDeOperacaoInvalidoTransacaoException | LimiteTamanhoDescricaoExcedidoException e) {
@@ -127,10 +124,6 @@ public class rinha {
                         OutputStream os = exchange.getResponseBody();
                         os.write(e.getMessage().getBytes());
                         os.close();
-                    } catch (SQLException e) {
-                        e.printStackTrace();
-                        exchange.sendResponseHeaders(500, e.getMessage().getBytes().length);
-
 
                     } catch (ClienteNaoEncontradoException e) {
                         exchange.getResponseHeaders().set("Content-Type", "application/json");
@@ -138,6 +131,8 @@ public class rinha {
                         OutputStream os = exchange.getResponseBody();
                         os.write(e.getMessage().getBytes());
                         os.close();
+                    } catch (SQLException e) {
+                        throw new RuntimeException(e);
                     }
                 }
             }

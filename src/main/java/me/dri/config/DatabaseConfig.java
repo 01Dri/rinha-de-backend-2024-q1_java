@@ -10,8 +10,6 @@ public class DatabaseConfig {
     private final static HikariDataSource data;
 
     static {
-//        Logger hikariLogger = (Logger) LoggerFactory.getLogger("com.zaxxer.hikari");
-//        hikariLogger.setLevel(Level.OFF);
         try {
             Class.forName("org.postgresql.Driver");
             data = new HikariDataSource();
